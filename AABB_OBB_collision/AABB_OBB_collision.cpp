@@ -26,6 +26,8 @@ struct BOX_PROPERTY
 	float BoxScaling;
 };
 
+
+
 BOX_PROPERTY g_Box[2];
 LPD3DXMESH g_pMesh = nullptr;
 D3DXVECTOR3 g_MinPoint = { 0.f, 0.f, 0.f };
@@ -44,6 +46,8 @@ VOID TextSetting();
 VOID Render();
 VOID Update();
 VOID Cleanup();
+
+void SetBox( BOX_PROPERTY* Box, D3DXVECTOR3 CenterPos = {0.f,0.f,0.f}, float BoxScaling = 1.5, float BoxRotateZ = 0 );
 BOOL CheckAABBIntersection( D3DXVECTOR3* vMin1, D3DXVECTOR3* vMax1, D3DXVECTOR3* vMin2, D3DXVECTOR3* vMax2 );
 BOOL CheckOBBIntersection( BOX_PROPERTY* Box1, BOX_PROPERTY* Box2 );
 
@@ -148,13 +152,24 @@ HRESULT InitGeometry( )
 	D3DXComputeBoundingBox( vertices, g_pMesh->GetNumVertices(), g_pMesh->GetNumBytesPerVertex(), &g_MinPoint, &g_MaxPoint );
 	g_pMesh->UnlockVertexBuffer();
 
-	D3DXMATRIX matScale, matTrans, matRotateZ, matWorld;
 	
+	D3DXMATRIX matScale, matTrans, matRotateZ, matWorld;
 
 	g_Box[0].BoxScaling = 1.5f;
 	g_Box[0].CenterPos = D3DXVECTOR3( 0.f, 0.f, 0.f );
 	g_Box[0].BoxRotateZ = 0.f;
+	g_Box[0].AxisDir[0] = D3DXVECTOR3( 1, 0, 0 );
+	g_Box[0].AxisDir[1] = D3DXVECTOR3( 0, 1, 0 );
+	g_Box[0].AxisDir[2] = D3DXVECTOR3( 0, 0, 1 );
 
+	for ( int i = 0; i < 3; ++i )
+	{
+		g_Box[0].AxisLen[i] = 0.5f;
+
+		D3DXVec3TransformNormal( &(g_Box[0].AxisDir[i]), &(g_Box[0].AxisDir[i]), &matRotateZ );
+		D3DXVec3Normalize( &( g_Box[0].AxisDir[i] ), &( g_Box[0].AxisDir[i] ) );
+		g_Box[0].AxisLen[i] = g_Box[0].AxisLen[i] * g_Box[0].BoxScaling;
+	}
 	D3DXMatrixTranslation( &matTrans, g_Box[0].CenterPos.x, g_Box[0].CenterPos.y, g_Box[0].CenterPos.z );
 	D3DXMatrixScaling( &matScale, g_Box[0].BoxScaling, g_Box[0].BoxScaling, g_Box[0].BoxScaling );
 	D3DXMatrixRotationZ( &matRotateZ, g_Box[0].BoxRotateZ );
@@ -163,9 +178,22 @@ HRESULT InitGeometry( )
 	D3DXVec3TransformCoord( &g_Box[0].MinPoint, &g_MinPoint, &matWorld );
 	D3DXVec3TransformCoord( &g_Box[0].MaxPoint, &g_MaxPoint, &matWorld );
 
+	
 	g_Box[1].BoxScaling = 2.f;
 	g_Box[1].CenterPos = D3DXVECTOR3( 3.f, 3.f, 0.f );
 	g_Box[1].BoxRotateZ = 0.f;
+	g_Box[1].AxisDir[0] = D3DXVECTOR3( 1, 0, 0 );
+	g_Box[1].AxisDir[1] = D3DXVECTOR3( 0, 1, 0 );
+	g_Box[1].AxisDir[2] = D3DXVECTOR3( 0, 0, 1 );
+
+	for ( int i = 0; i < 3; ++i )
+	{
+		g_Box[1].AxisLen[i] = 0.5f;
+
+		D3DXVec3TransformNormal( &( g_Box[0].AxisDir[i] ), &( g_Box[1].AxisDir[i] ), &matRotateZ );
+		D3DXVec3Normalize( &( g_Box[1].AxisDir[i] ), &( g_Box[1].AxisDir[i] ) );
+		g_Box[1].AxisLen[i] = g_Box[1].AxisLen[i] * g_Box[1].BoxScaling;
+	}
 
 	D3DXMatrixTranslation( &matTrans, g_Box[1].CenterPos.x, g_Box[1].CenterPos.y, g_Box[1].CenterPos.z );
 	D3DXMatrixScaling( &matScale, g_Box[1].BoxScaling, g_Box[1].BoxScaling, g_Box[1].BoxScaling );
@@ -174,9 +202,45 @@ HRESULT InitGeometry( )
 	matWorld = matRotateZ* matScale * matTrans;
 	D3DXVec3TransformCoord( &g_Box[1].MinPoint, &g_MinPoint, &matWorld );
 	D3DXVec3TransformCoord( &g_Box[1].MaxPoint, &g_MaxPoint, &matWorld );
-	
+
 
 	return S_OK;
+}
+
+void SetBox( BOX_PROPERTY* Box, D3DXVECTOR3 CenterPos, float BoxScaling, float BoxRotateZ )
+{
+	D3DXMATRIX matScale, matTrans, matRotateZ, matWorld;
+	D3DXMatrixIdentity( &matScale );
+	D3DXMatrixIdentity( &matTrans );
+	D3DXMatrixIdentity( &matRotateZ );
+	D3DXMatrixIdentity( &matWorld );
+
+	Box->CenterPos = CenterPos;
+	Box->BoxRotateZ = BoxRotateZ;
+	
+	Box->AxisDir[0] = D3DXVECTOR3( 1, 0, 0 );
+	Box->AxisDir[1] = D3DXVECTOR3( 0, 1, 0 );
+	Box->AxisDir[2] = D3DXVECTOR3( 0, 0, 1 );
+	
+	Box->AxisLen[0] = 0.5f;
+	Box->AxisLen[1] = 0.5f;
+	Box->AxisLen[2] = 0.5f;
+
+	D3DXMatrixTranslation( &matTrans, Box->CenterPos.x, Box->CenterPos.y, Box->CenterPos.z );
+	D3DXMatrixScaling( &matScale, Box->BoxScaling, Box->BoxScaling, Box->BoxScaling );
+	D3DXMatrixRotationZ( &matRotateZ, Box->BoxRotateZ );
+	matWorld = matRotateZ * matScale * matTrans;
+
+	D3DXVec3TransformCoord( &Box->MinPoint, &g_MinPoint, &matWorld );
+	D3DXVec3TransformCoord( &Box->MaxPoint, &g_MaxPoint, &matWorld );
+	
+	for ( int i = 0; i < 3; ++i )
+	{
+		D3DXVec3TransformNormal( &Box->AxisDir[i], &Box->AxisDir[i], &matRotateZ );
+		D3DXVec3Normalize( &Box->AxisDir[i], &Box->AxisDir[i] );
+
+		Box->AxisLen[i] = Box->AxisLen[i] * BoxScaling;
+	}
 }
 
 BOOL CheckAABBIntersection( D3DXVECTOR3* vMin1, D3DXVECTOR3* vMax1, D3DXVECTOR3* vMin2, D3DXVECTOR3* vMax2 )
@@ -341,58 +405,6 @@ VOID SetupMatrices( )
 
 }
 
-/*
-VOID SetupLights( )
-{
-	D3DMATERIAL9 mtrl;
-	ZeroMemory( &mtrl, sizeof( D3DMATERIAL9 ) );
-	mtrl.Diffuse.r = mtrl.Ambient.r = 1.0f;
-	mtrl.Diffuse.g = mtrl.Ambient.g = 1.0f;
-	mtrl.Diffuse.b = mtrl.Ambient.b = 1.0f;
-	mtrl.Diffuse.a = mtrl.Ambient.a = 1.0f;
-	g_pD3DDevice->SetMaterial( &mtrl );
-
-	D3DXVECTOR3 vecDir0;
-	D3DLIGHT9 light0;
-	ZeroMemory( &light0, sizeof( D3DLIGHT9 ) );
-	light0.Type = D3DLIGHT_DIRECTIONAL;
-	light0.Diffuse.r = 1.f;
-	light0.Diffuse.g = 1.f;
-	light0.Diffuse.b = 1.f;
-	vecDir0 = D3DXVECTOR3( -1.f, 1.f, 0.f );
-	D3DXVec3Normalize( (D3DXVECTOR3*) &light0.Direction, &vecDir0 );
-	light0.Range = 1000.f;
-
-
-	D3DXVECTOR3 vecDir1;
-	D3DLIGHT9 light1;
-	ZeroMemory( &light1, sizeof( D3DLIGHT9 ) );
-	light1.Type = D3DLIGHT_DIRECTIONAL;
-	light1.Diffuse.r = 1.f;
-	light1.Diffuse.g = 1.f;
-	light1.Diffuse.b = 1.f;
-	vecDir1 = D3DXVECTOR3( 1.f, 1.f, 0.f );
-	D3DXVec3Normalize( (D3DXVECTOR3*) &light1.Direction, &vecDir1 );
-	light1.Range = 1000.f;
-
-	g_pD3DDevice->SetLight( 0, &light0 );
-	g_pD3DDevice->SetLight( 1, &light1 );
-
-	g_pD3DDevice->SetRenderState( D3DRS_LIGHTING, TRUE );
-	g_pD3DDevice->SetRenderState( D3DRS_AMBIENT, 0x00808080 );
-
-	if ( 5<( g_tick % 31 ) )
-	{
-		g_pD3DDevice->LightEnable( 0, TRUE );
-		g_pD3DDevice->LightEnable( 1, FALSE );
-	}
-	else
-	{
-		g_pD3DDevice->LightEnable( 0, FALSE );
-		g_pD3DDevice->LightEnable( 1, TRUE );
-	}
-}
-*/
 
 
 VOID Render( )
@@ -404,7 +416,6 @@ VOID Render( )
 
 	if ( SUCCEEDED( g_pD3DDevice->BeginScene( ) ) )
 	{
-		//SetupLights( );
 
 		SetupMatrices( );
 		SetRect( &rt1, 10, 10, 0, 0 );
@@ -428,6 +439,7 @@ VOID Render( )
 			D3DXMatrixScaling( &matScale, g_Box[i].BoxScaling, g_Box[i].BoxScaling, g_Box[i].BoxScaling );
 			D3DXMatrixRotationZ( &matRotateZ, g_Box[i].BoxRotateZ );
 			matWorld = matRotateZ * matScale * matTrans;
+
 			g_pD3DDevice->SetTransform( D3DTS_WORLD, &matWorld );
 
 			g_pMesh->DrawSubset( 0 );
