@@ -27,7 +27,6 @@ struct BOX_PROPERTY
 };
 
 
-
 BOX_PROPERTY g_Box[2];
 LPD3DXMESH g_pMesh = nullptr;
 D3DXVECTOR3 g_MinPoint = { 0.f, 0.f, 0.f };
@@ -47,7 +46,7 @@ VOID Render();
 VOID Update();
 VOID Cleanup();
 
-void SetBox( BOX_PROPERTY* Box, D3DXVECTOR3 CenterPos = {0.f,0.f,0.f}, float BoxScaling = 1.5, float BoxRotateZ = 0 );
+//void SetBox( BOX_PROPERTY* Box, D3DXVECTOR3 CenterPos = {0.f,0.f,0.f}, float BoxScaling = 1.5, float BoxRotateZ = 0 );
 BOOL CheckAABBIntersection( D3DXVECTOR3* vMin1, D3DXVECTOR3* vMax1, D3DXVECTOR3* vMin2, D3DXVECTOR3* vMax2 );
 BOOL CheckOBBIntersection( BOX_PROPERTY* Box1, BOX_PROPERTY* Box2 );
 
@@ -207,41 +206,6 @@ HRESULT InitGeometry( )
 	return S_OK;
 }
 
-void SetBox( BOX_PROPERTY* Box, D3DXVECTOR3 CenterPos, float BoxScaling, float BoxRotateZ )
-{
-	D3DXMATRIX matScale, matTrans, matRotateZ, matWorld;
-	D3DXMatrixIdentity( &matScale );
-	D3DXMatrixIdentity( &matTrans );
-	D3DXMatrixIdentity( &matRotateZ );
-	D3DXMatrixIdentity( &matWorld );
-
-	Box->CenterPos = CenterPos;
-	Box->BoxRotateZ = BoxRotateZ;
-	
-	Box->AxisDir[0] = D3DXVECTOR3( 1, 0, 0 );
-	Box->AxisDir[1] = D3DXVECTOR3( 0, 1, 0 );
-	Box->AxisDir[2] = D3DXVECTOR3( 0, 0, 1 );
-	
-	Box->AxisLen[0] = 0.5f;
-	Box->AxisLen[1] = 0.5f;
-	Box->AxisLen[2] = 0.5f;
-
-	D3DXMatrixTranslation( &matTrans, Box->CenterPos.x, Box->CenterPos.y, Box->CenterPos.z );
-	D3DXMatrixScaling( &matScale, Box->BoxScaling, Box->BoxScaling, Box->BoxScaling );
-	D3DXMatrixRotationZ( &matRotateZ, Box->BoxRotateZ );
-	matWorld = matRotateZ * matScale * matTrans;
-
-	D3DXVec3TransformCoord( &Box->MinPoint, &g_MinPoint, &matWorld );
-	D3DXVec3TransformCoord( &Box->MaxPoint, &g_MaxPoint, &matWorld );
-	
-	for ( int i = 0; i < 3; ++i )
-	{
-		D3DXVec3TransformNormal( &Box->AxisDir[i], &Box->AxisDir[i], &matRotateZ );
-		D3DXVec3Normalize( &Box->AxisDir[i], &Box->AxisDir[i] );
-
-		Box->AxisLen[i] = Box->AxisLen[i] * BoxScaling;
-	}
-}
 
 BOOL CheckAABBIntersection( D3DXVECTOR3* vMin1, D3DXVECTOR3* vMax1, D3DXVECTOR3* vMin2, D3DXVECTOR3* vMax2 )
 {
@@ -492,6 +456,20 @@ VOID Update()
 		}
 		
 	}
+	if ( GetAsyncKeyState( VK_HOME ) )
+	{
+		g_Box[1].BoxRotateZ -= 0.2f;
+	}
+	if ( GetAsyncKeyState( VK_END ) )
+	{
+		g_Box[1].BoxRotateZ += 0.2f;
+	}
+
+	D3DXVECTOR3 *vertices;
+
+	g_pMesh->LockVertexBuffer( D3DLOCK_READONLY, (void**) &vertices );
+	D3DXComputeBoundingBox( vertices, g_pMesh->GetNumVertices(), g_pMesh->GetNumBytesPerVertex(), &g_MinPoint, &g_MaxPoint );
+	g_pMesh->UnlockVertexBuffer();
 
 	D3DXMATRIX matScale, matTrans, matRotateZ, matWorld;
 	D3DXMatrixTranslation( &matTrans, g_Box[0].CenterPos.x, g_Box[0].CenterPos.y, g_Box[0].CenterPos.z );
@@ -535,3 +513,41 @@ VOID Cleanup( )
 		g_pD3D->Release();
 	}
 }
+
+/*
+void SetBox( BOX_PROPERTY* Box, D3DXVECTOR3 CenterPos, float BoxScaling, float BoxRotateZ )
+{
+D3DXMATRIX matScale, matTrans, matRotateZ, matWorld;
+D3DXMatrixIdentity( &matScale );
+D3DXMatrixIdentity( &matTrans );
+D3DXMatrixIdentity( &matRotateZ );
+D3DXMatrixIdentity( &matWorld );
+
+Box->CenterPos = CenterPos;
+Box->BoxRotateZ = BoxRotateZ;
+
+Box->AxisDir[0] = D3DXVECTOR3( 1, 0, 0 );
+Box->AxisDir[1] = D3DXVECTOR3( 0, 1, 0 );
+Box->AxisDir[2] = D3DXVECTOR3( 0, 0, 1 );
+
+Box->AxisLen[0] = 0.5f;
+Box->AxisLen[1] = 0.5f;
+Box->AxisLen[2] = 0.5f;
+
+D3DXMatrixTranslation( &matTrans, Box->CenterPos.x, Box->CenterPos.y, Box->CenterPos.z );
+D3DXMatrixScaling( &matScale, Box->BoxScaling, Box->BoxScaling, Box->BoxScaling );
+D3DXMatrixRotationZ( &matRotateZ, Box->BoxRotateZ );
+matWorld = matRotateZ * matScale * matTrans;
+
+D3DXVec3TransformCoord( &Box->MinPoint, &g_MinPoint, &matWorld );
+D3DXVec3TransformCoord( &Box->MaxPoint, &g_MaxPoint, &matWorld );
+
+for ( int i = 0; i < 3; ++i )
+{
+D3DXVec3TransformNormal( &Box->AxisDir[i], &Box->AxisDir[i], &matRotateZ );
+D3DXVec3Normalize( &Box->AxisDir[i], &Box->AxisDir[i] );
+
+Box->AxisLen[i] = Box->AxisLen[i] * BoxScaling;
+}
+}
+*/
